@@ -1,0 +1,7 @@
+pathlib
+requests
+biopython
+pandas
+numpy
+matplotlib
+shiny>=1.5.1
