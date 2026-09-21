@@ -274,10 +274,6 @@ class State:
         return Scenario()
 
     # ===== Search ===== #
-
-    @staticmethod
-    def cv() -> pd.DataFrame:
-        return pickle.load(open(f"{ROOT}/data/dbs/ClinVar_variants", "rb"))
     
     @staticmethod
     def find_variant(db:str, acc_num:str) -> tuple[tuple[str, int, list[str], str]|None, str|None]:

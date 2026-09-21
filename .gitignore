@@ -1,0 +1,13 @@
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Images
+*.png
+*.svg
+
+# Sequences
+nagnag/data/seq/
+nagnag/data/hg38
+hg38.fa*

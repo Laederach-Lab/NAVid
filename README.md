@@ -1,13 +1,41 @@
 # NAGNAG-Affecting Variants
-Creates an app that allows users to identify genomic variants that create, alter, or destroy a NAGNAG in the human genome and understand the proteomic consequences.
+Identify genomic variants that create, alter, or destroy a NAGNAG in the human genome and understand the proteomic consequences.
 
 ## Installation and Usage
 To access the app via the web, go to https://nagnag.bio.unc.edu.
 
 To run locally:
-* clone the repository
-* run `pip install -r requirements.txt` to ensure that you have all the necessary Python packages installed
-* run `shiny run app.py --update --launch-browser`
+1. Clone the repository
+
+```
+git clone https://github.com/Laederach-Lab/NAVid.git
+cd NAVid
+```
+
+2. Install the required Python packages
+
+```
+pip install -r requirements.txt`
+```
+
+3. Download and parse reference genome GRCh38/hg38
+
+```
+python parse-hg38.py
+```
+
+4. Launch app
+
+```
+shiny run app.py --update --launch-browser
+```
+
+__NOTE:__ The local version does not include any information on HGMD variants. Summary statistics pertaining to HGMD variants can be found on the webserver.
+
+### Data Updates
+To update the source data:
+1. Re-run the analyses from https://github.com/hallep/nagnag-3ss
+2. Run `update-data.py </path/to/nagnag-3ss/> </path/to/NAVid/>`
 
 ## Support
 If you have questions or run into issues, contact us at hpearce@unc.edu or alain@unc.edu.

@@ -79,7 +79,7 @@ class Seq:
         # strand
         if strand == "-":
             gs = gs.reverse_complement()
-
+        
         # repeat masker
         if upper:
             gs = gs.upper()
