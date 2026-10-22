@@ -1,7 +1,6 @@
-pathlib
-requests
-biopython
-pandas
-numpy
-matplotlib
+requests>=2.32.5
+biopython>=1.86
+pandas>=2.3.3
+numpy>=2.4.0
+matplotlib>=3.10.8
 shiny>=1.5.1
