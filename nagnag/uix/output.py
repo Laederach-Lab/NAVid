@@ -14,7 +14,7 @@ class Output:
 
     @staticmethod
     def processed_upload(filepath:str) -> pd.DataFrame:
-        data = pd.read_csv(filepath, sep="\t", header=None)
+        data = pd.read_csv(filepath, sep="\t", header=None, comment="#", skip_blank_lines=True)
 
         data["effect"] = ["none"] * len(data)
         data["ref_motif"] = ["."] * len(data)
@@ -23,25 +23,33 @@ class Output:
         # for each variant:
         for i,vnt in data.iterrows():
 
-            # validate data
+            # check chromosome
             chrom = Seq.format_chrom(vnt[0])
-            data.at[i, 0] = chrom
-            
-            try:
-                if Seq.valid_coord(int(vnt[1])):
-                    pos = int(vnt[1])
-            except:
+            if chrom == None:
                 data.at[i, "effect"] = "invalid"
                 continue
-            else:
-                data.at[i, 1] = pos
+            data.at[i, 0] = chrom
 
+            # check position            
+            try: pos = int(str(vnt[1]).replace(",", ""))
+            except: pos = -1
+            if not Seq.valid_coord(pos):
+                data.at[i, "effect"] = "invalid"
+                continue
+            data.at[i, 1] = pos
+
+            # check strand
             strand = vnt[2] if Seq.valid_strand(vnt[2]) else "+"
             data.at[i, 2] = strand
-            
+
+            # check alternate allele
             alt = Seq.format_base(vnt[3])
+            if alt == None:
+                data.at[i, "effect"] = "invalid"
+                continue
             data.at[i, 3] = alt
 
+            # assess variant
             result = Variant.affected_nagnag(chrom, pos, strand, alt)
 
             if result == False:
@@ -53,7 +61,7 @@ class Output:
                 data.at[i, "effect"] = Variant.nagnag_effect(result[3], result[4])
 
         return data
-
+    
     # ===== Data ===== #
 
     # ----- Variants ----- #

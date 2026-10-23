@@ -219,12 +219,11 @@ class State:
 
             If any values are missing or invalid,
             return empty Variant and error message(s) as a list
-            * ERROR: Missing chromosome
-            * ERROR: Missing alternate allele
-            * ERROR: Missing variant position
-            * ERROR: Missing 5' splice site position
-            * ERROR: Variant position outside of chromosome
-            * ERROR: 5' splice site position outside of chromosome
+            * Missing chromosome
+            * Missing alternate allele
+            * Missing variant position
+            * Variant location is outside of the chromosome
+            * 5' splice site location is outside of the chromosome
 
             Otherwise, return empty list
         '''
@@ -233,22 +232,20 @@ class State:
 
         # Check if values are set
         if self.chrom == None:
-            errors.append("ERROR: Missing chromosome")
+            errors.append(r"Missing <b>Chromosome</b>")
         if self.alt == None:
-            errors.append("ERROR: Missing alternate allele")
+            errors.append(r"Missing <b>Alternate Allele</b>")
         if self.var_pos == None:
-            errors.append("ERROR: Missing variant position")
-        # if self.ss5 == None:
-        #     errors.append("ERROR: Missing 5' splice site position")
+            errors.append(r"Missing <b>Variant Location</b>")
 
         if errors:
             return errors, Variant()
 
         # Check if values are biologically valid
         if self.var_pos >= Seq.CHR_LEN[self.chrom]:
-            errors.append("ERROR: Variant position outside of chromosome")
+            errors.append(r"<b>Variant Location</b> is outside of the chromosome")
         if (self.ss5 != None) and (self.ss5 >= Seq.CHR_LEN[self.chrom]):
-            errors.append("ERROR: 5' splice site position outside of chromosome")
+            errors.append(r"<5' Splice Site Location</b> is outside of the chromosome")
 
         if errors:
             return errors, Variant()

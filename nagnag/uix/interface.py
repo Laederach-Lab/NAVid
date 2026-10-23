@@ -1,5 +1,5 @@
 from .format import Fmt
-from ..lib import ui
+from ..lib import faicons, ui
 from ..utils import Variant
 
 class Interface:
@@ -134,22 +134,25 @@ class Interface:
     # ===== Modules ===== #
 
     @staticmethod
-    def error_modal(error:str|list[str]):
-        
-        def h4(error:str):
-            return ui.h4(error, class_="error-message")
+    def toast(title:str, message:str|list[str], toast_type:str="error", duration:int=None, id:str=None):
+        icon, color = {
+            "error" : ("circle-xmark", "#C10000"), 
+            "warning" : ("triangle-exclamation", "#F9B939"),
+            "dark" : ("circle-info", "#000000"),
+        }[toast_type]
 
-        if isinstance(error, str):
-            errs = [h4(error)]
-        else:
-            errs = [h4(e) for e in error]
-        
-        return ui.modal(
-            *errs,
-            title = None,
-            size = "m",
-            easy_close=True,
-            footer = None,
+        if isinstance(message, str):
+            message = [message]
+
+        return ui.toast(
+            *[ui.div(ui.HTML(s)) for s in list(message)],
+            header = ui.toast_header(
+                title = ui.div(title, class_="toast-header-text"),
+                icon = faicons.icon_svg(icon, fill=color)
+            ),
+            type=toast_type,
+            duration_s=duration,
+            id=id
         )
 
     @staticmethod

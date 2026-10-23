@@ -142,6 +142,11 @@ app_ui = ui.page_fluid(
     # Text
     ui.tags.style(
         """
+        .toast-header-text {
+            color: #000000;
+            font-weight: 800;
+        }
+
         .error-message {
             text-align: center;
             color: #EE0000;
@@ -406,7 +411,7 @@ app_ui = ui.page_fluid(
                             
                             # instructions
                             ui.p("Files should be tab-delimited with the first 4 columns as follows:", style="line-height:1; margin-bottom:12px"),
-                            ui.output_text_verbatim("input_columns"),
+                            ui.output_code("input_columns"),
                             ui.p("(see right for examples)", style="line-height:1; margin-top:12px; margin-bottom:6px"),
                             ui.p("Other columns are permissible but will be ignored.", style="line-height:1"),
 
@@ -447,11 +452,11 @@ app_ui = ui.page_fluid(
                         ui.div(
                             # example input
                             ui.h5("Input", style="font-weight:600; padding-bottom:3px"),
-                            ui.output_text_verbatim("example_input"),
+                            ui.output_code("example_input"),
                             
                             # example output
                             ui.h5("Output", style="font-weight:600; padding:12px 0px 3px"),
-                            ui.output_text_verbatim("example_output"),
+                            ui.output_code("example_output"),
                         )
                     ),
 

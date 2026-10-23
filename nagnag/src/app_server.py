@@ -1,4 +1,4 @@
-from ..lib import ROOT, np, Inputs, Outputs, Session, reactive, render, ui
+from ..lib import ROOT, pd, np, Inputs, Outputs, Session, reactive, render, ui
 from ..utils import Seq, Scenario, Variant
 from ..uix import State, Interface, Output, Response, Fmt
 
@@ -11,6 +11,7 @@ def server(input:Inputs, output:Outputs, session:Session):
     scen = reactive.value(Scenario())
 
     uploads = reactive.value([])
+    curr_toasts = reactive.value([])
 
     env = globals().copy()
     env.update(locals())
@@ -21,35 +22,112 @@ def server(input:Inputs, output:Outputs, session:Session):
     @reactive.effect
     @reactive.event(input.file_upload)
     def _():
-        files = {f["id"] : f for f in uploads.get()}
-        
+
+        names = [f["id"] for f in uploads.get()]
+        files = uploads.get()
+        new_files = []
+
+        toasts = curr_toasts.get()
+
         for f in input.file_upload():
-            
+
             # sanitize filename
-            f["id"] = "".join(filter(lambda x: str(x).isalnum() or (x == "_"), f["name"].split(".")[0]))
+            f["name"] = "".join(filter(lambda x: str(x).isalnum() or (x == "_"), str(f["name"]).split(".")[0]))
 
-            # check for duplicates
-            if f["id"] in files.keys():
-                files.pop(f["id"])
+            # get instance (files with the same name)
+            f["inst"] = names.count(f["name"])
+            f["id"] = f"{f["name"]}{"" if (f["inst"] == 0) else f"_{f["inst"]}"}"
 
-            # add file to list
-            files.update({f["id"] : f})
+            # empty
+            if f["size"] == 0:
+                ui.show_toast(
+                    Interface.toast(
+                        "File Size Error", 
+                        fr"<b>{f["name"]}</b> is empty!", 
+                        id=f"empty_{f["id"]}"
+                    )
+                )
+                toasts.append(f"empty_{f["id"]}")
+                continue
+            
+            # too big
+            if f["size"] > 5e+7:
+                bytes = {1e+9 : "GB", 1e+6 : "MB", 1e+3 : "KB", 1e+0 : "B"}
+                for b, unit in bytes.items():
+                    if f["size"] > b: d = b
+                    else: break
+                
+                ui.show_toast(
+                    Interface.toast(
+                        "File Size Error",
+                        [fr"<b>{f["name"]}</b> ({round(f["size"] / d, 1)} {unit}) is too big!",
+                         "Maximum file size: 50MB"],
+                        id=f"gt50mb{f["id"]}"
+                    )
+                )
+                toasts.append(f"gt50mb{f["id"]}")
+                continue
 
-        # save files
-        uploads.set(list(files.values()))
+            # too few columns
+            data = pd.read_csv(f["datapath"], sep="\t", header=None, comment="#", skip_blank_lines=True)
+            if len(data.columns) < 4:
+                ui.show_toast(
+                    Interface.toast(
+                        "File Format Error",
+                        [fr"<b>{f["name"]}</b> only has {len(data.columns)} columns!",
+                         r"4 columns (<i>chromosome</i>, <i>position</i>, <i>strand</i>, <i>alternate allele</i>) are expected"],
+                        id=f"lt4_columns_{f["id"]}"
+                    )
+                )
+                toasts.append(f"lt4_columns_{f["id"]}")
+                continue
 
-        for file in uploads.get():
+            # invalid variants
+            ni = 0
+            for c, p, _, a in data.values[:, :4]:
+                if ((Seq.format_chrom(c) == None) or 
+                    (not Seq.valid_coord(p)) or 
+                    (Seq.format_base(a) == None)):
+                    ni += 1
+
+            if ni > 0:
+                pl = "s" if (ni > 1) else ""
+                verb = "have" if (ni > 1) else "has"
+                ui.show_toast(
+                    Interface.toast(
+                        "Warning",
+                        [fr"{ni} variant{pl} in <b>{f["name"]}</b> {verb} invalid data type(s)",
+                        "Their effect is marked as <b>invalid</b>"],
+                        toast_type="warning", id=f"invalid_data_{f["id"]}"
+                    )
+                )
+                toasts.append(f"invalid_data_{f["id"]}")
+
+            # add file to lists
+            new_files.append(f)
+            names.append(f["name"])
+
+        # update variables
+        uploads.set(files + new_files)
+        curr_toasts.set(toasts)
+
+        for file in new_files:
             exec(Response.render_download_link(file), env)
-
+    
     # Clear
     @reactive.effect
     @reactive.event(input.clear_uploads)
     def _():
         uploads.set([])
 
+        # close toasts
+        for tid in curr_toasts.get():
+            ui.hide_toast(tid)
+        curr_toasts.set([])
+
     # Submit
     @render.ui
-    @reactive.event(input.file_upload)
+    @reactive.event(input.file_upload, input.clear_uploads)
     def download_processed_files():
         return ui.div(*[Interface.download_link(f["id"]) for f in uploads.get()])
     
@@ -120,11 +198,21 @@ chr1	205775089	-	A	destroy	GAACAG	GAGCAG
             ui.update_text(id="var_pos", value=p)
 
     def submit():
-        e,v = state.get().get_variant()
+
+        # close toasts
+        for tid in curr_toasts.get():
+            ui.hide_toast(tid)
+
+        toasts = []
+
+        errors, v = state.get().get_variant()
         
-        # errors
-        if e:
-            ui.modal_show(Interface.error_modal(e))
+        # error messages
+        if errors:
+            for c, e in enumerate(errors):
+                ui.show_toast(Interface.toast("Input Error", e, id=f"input_error_{c}"))
+                toasts.append(f"input_error_{c}")
+            curr_toasts.set(toasts)
 
         vnt.set(v)
         scen.set(state.get().get_scenario(v))
@@ -133,6 +221,19 @@ chr1	205775089	-	A	destroy	GAACAG	GAGCAG
         l = "Alternate Allele" if a else "Reference Allele"
         ui.update_switch(id="allele", label=l)
         state.get().update_allele(a)
+
+        # no 5'ss
+        if not errors and vnt.get().not_scenario:
+            ui.show_toast(
+                Interface.toast(
+                    "Missing 5' splice site", 
+                    fr"Specify the <b>5' Splice Site Location</b> in order to view proteome effects",
+                    toast_type="dark", id="missing_5ss_toast"
+                )
+            )
+            toasts.append("missing_5ss_toast")
+
+        curr_toasts.set(toasts)
 
     # Submit
     @reactive.effect

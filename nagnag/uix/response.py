@@ -87,7 +87,7 @@ def {id}_{db}_vnts_table():
         ],
     )
 
-@render.download(filename="{db}_variants_same_{fn()}.txt")
+@render.download_button(filename="{db}_variants_same_{fn()}.txt")
 def {id}_{db}_vnts_download():
     data = Output.vnt_ids_table(id="{id}", db="{db}", vnt=vnt.get(), scen=scen.get(), fmt=False)
     if data.empty:
@@ -228,7 +228,7 @@ def {metric}_{phase}_freq_table():
     @staticmethod
     def render_download_link(file:dict[str, str]) -> str:
         return f"""
-@render.download(filename="{file["id"]}_nagnags.txt")
+@render.download_link(filename="{file["id"]}_nagnags.txt")
 def download_{file["id"]}():
     data = Output.processed_upload("{file["datapath"]}")
     yield data.to_csv(sep="\t", header=False, index=False)
@@ -239,7 +239,7 @@ def download_{file["id"]}():
     @staticmethod
     def render_download_existing(id:str, file:str) -> str:
         return f"""
-@render.download(filename="{file}")
+@render.download_button(filename="{file}")
 def {id}():
     return f"{{ROOT}}/data/export/{file}"
         """    
