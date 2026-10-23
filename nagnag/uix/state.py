@@ -305,7 +305,7 @@ class State:
         except requests.exceptions.ConnectionError:
             return False, f"Error: connection failed (status {api.status_code})"
         except:
-            return f"Error: status {api.status_code}"
+            return False, f"Error: status {api.status_code}"
 
         # JSON
         try:

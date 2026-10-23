@@ -229,7 +229,7 @@ def {metric}_{phase}_freq_table():
     def render_download_link(file:dict[str, str]) -> str:
         return f"""
 @render.download_link(filename="{file["id"]}_nagnags.txt")
-def download_{file["id"]}():
+def download_{file["id"]}_nagnags():
     data = Output.processed_upload("{file["datapath"]}")
     yield data.to_csv(sep="\t", header=False, index=False)
         """

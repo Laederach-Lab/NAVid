@@ -127,8 +127,8 @@ class Interface:
     @staticmethod
     def download_link(name:str):
         return ui.div(
-            ui.download_link(id=f"download_{name.split(".")[0]}", label=name),
-            style = "padding:6px 0px 0px"
+            ui.download_link(id=f"download_{name}_nagnags", label=name),
+            style = "padding: 6px 0px 0px"
         )
 
     # ===== Modules ===== #
