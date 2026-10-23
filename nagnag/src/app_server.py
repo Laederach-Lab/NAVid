@@ -272,6 +272,9 @@ chr1	205775089	-	A	destroy	GAACAG	GAGCAG
         state.get().update_index(0)
         ui.update_radio_buttons(id="index", selected="0")
 
+        state.get().update_ss5_pos(None)
+        ui.update_text(id="ss5_pos", value="")
+
     # Error Message
     @render.ui
     @reactive.event(input.submit_search)
@@ -394,7 +397,7 @@ chr1	205775089	-	A	destroy	GAACAG	GAGCAG
     def nagnag_effect_freq_plot():
         return Output.nagnag_effect_plot(vnt.get())
 
-    exec(Response.reactive_vnt_ids("nagnag_effect"), env)
+    exec(Response.reactive_render_vnt_ids("nagnag_effect"), env)
 
     @render.ui
     def nag_strength():
@@ -568,7 +571,7 @@ chr1	205775089	-	A	destroy	GAACAG	GAGCAG
             ]
         )
 
-    exec(Response.reactive_vnt_ids("motif"), env)
+    exec(Response.reactive_render_vnt_ids("motif"), env)
 
     # ----- Proteome Effects ----- #
 
@@ -587,7 +590,7 @@ chr1	205775089	-	A	destroy	GAACAG	GAGCAG
         # Frequency + Output Tables
         for m in ["vc", "aat", "aatt", "ins", "del", "ins_a0", "ins_a1", "del_a0", "del_a1"]:
             exec(Response.render_tsn_freq(p, m), env)
-            exec(Response.reactive_vnt_ids(f"{m}_{p}"), env)
+            exec(Response.reactive_render_vnt_ids(f"{m}_{p}"), env)
             exec(Response.render_results_metric_table(p, m), env)
         
     # ===== Variant Effects ===== #

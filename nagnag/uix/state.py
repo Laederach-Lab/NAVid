@@ -1,4 +1,4 @@
-from ..lib import ROOT, pickle, requests, pd
+from ..lib import requests, pd
 from ..utils import Seq, Scenario, Variant
 
 class State:
@@ -13,9 +13,6 @@ class State:
     * strand (str {"+", "-"}): current strand
     * phase (int {0, 1, 2}): current selected phase tab
     * allele (str {"ref", "alt"}): current selected allele
-
-    Class Variables:
-    * cv (DataFrame): ClinVar variants (id, chrom, pos, ref, alt)
     '''
 
     def __init__(self):
@@ -44,8 +41,9 @@ class State:
             * ERROR: Only canonical chromosomes (1-22, X, Y, M) are supported
         '''
 
-        # no input
-        if chrom == "":
+        # reset
+        if (chrom == "") or (chrom == None):
+            self.chrom = None
             return ""
         
         chrom = Seq.format_chrom(chrom)
@@ -69,8 +67,9 @@ class State:
             * ERROR: Variant position must be a non-negative integer
         '''
 
-        # no input
-        if loc == "":
+        # reset
+        if (loc == "") or (loc == None):
+            self.var_pos = None
             return ""
         
         # valid positions
@@ -100,8 +99,9 @@ class State:
             * ERROR: Alternate allele must be a single (A, C, G, or T)
         '''
         
-        # no input
-        if alt == "":
+        # reset
+        if (alt == "") or (alt == None):
+            self.alt = None
             return ""
         
         a = str(alt).upper().replace("U", "T")[0]
@@ -125,8 +125,9 @@ class State:
             * ERROR: 5' splice site position must be a non-negative integer
         '''
 
-        # no input
-        if loc == "":
+        # reset
+        if (loc == "") or (loc == None):
+            self.ss5 = None
             return ""
 
         # valid positions
@@ -154,7 +155,7 @@ class State:
 
         # invalid input
         if strand not in ["+", "-"]:
-            return "+"
+            return self.strand
 
         self.strand = strand
 
@@ -166,7 +167,7 @@ class State:
         
         # invalid input
         if str(index) not in ["0", "1"]:
-            return "1"
+            return str(self.index)
         
         self.index = int(index)
 
@@ -276,7 +277,51 @@ class State:
     # ===== Search ===== #
     
     @staticmethod
-    def find_variant(db:str, acc_num:str) -> tuple[tuple[str, int, list[str], str]|None, str|None]:
+    def call_api(url:str, params:dict=None, timeout:int=30) -> tuple[bool, dict] | tuple[bool, str]:
+
+        ''' Evaluate API call
+        
+        Parameters
+        ----------
+        url : str
+            API URL
+
+        Returns
+        -------
+        success : bool
+            was the API call successful (no exceptions)?
+        results : str | dict
+            error message (success = False) or JSON of API request (success = True) 
+        '''
+
+        # request
+        try:
+            api = requests.get(url=url, params=params, timeout=timeout)
+        except:
+            return False, "Error"
+        
+        # exceptions
+        try:
+            api.raise_for_status()
+        except requests.exceptions.Timeout:
+            return False, f"Error: connection timeout (status {api.status_code})"
+        except requests.exceptions.ConnectionError:
+            return False, f"Error: connection failed (status {api.status_code})"
+        except:
+            return f"Error: status {api.status_code}"
+
+        # JSON
+        try:
+            results = api.json()
+        except:
+            return False, "Error: invalid JSON"
+
+        return True, results
+
+    @staticmethod
+    def find_variant(db:str, acc_num:str) -> tuple[tuple[str, int, list[str], str], str] | \
+                                             tuple[tuple[str, int, list[str], str], None] | \
+                                             tuple[None, str] | tuple[None, None]:
 
         ''' Search for a pre-existing variant
         
@@ -289,9 +334,9 @@ class State:
 
         Returns
         -------
-        _ : tuple | None
-            variant information: chromosome, coordinate, alternate allele, and upstream exon position
-        _ : str | None
+        vnt : tuple | None
+            variant information: chromosome, coordinate, alternate allele, and strand
+        msg : str | None
             error message
         '''
         
@@ -300,63 +345,77 @@ class State:
 
         acc_num = str(acc_num).strip()
 
-        # dbSNP
+        # define ID
         if db == "dbSNP":
+            uid = acc_num.removeprefix("rs")
+            params = dict(db="snp", retmode="json", id=uid)
 
-            # API Call
-            api = requests.get(f"https://clinicaltables.nlm.nih.gov/api/snps/v3/search?terms={acc_num}")
-            if api.status_code != 200:
-                return None, "Error"
-            
-            results = api.json()
-
-            # Variant not found
-            if acc_num not in results[1]:
-                return None, "Variant not found"
-            
-            info = results[3][results[1].index(acc_num)]
-            vnt = {
-                "chrom" : f"chr{info[1].replace("MT", "M")}",
-                "pos" : int(info[2]),
-                "strand" : "+",
-                "ref" : info[3].split("/")[0],
-                "alt" : ",".join([s.split("/")[1] for s in info[3].split(",")])
-            }
-        
-        # ClinVar
         elif db == "ClinVar":
+            uid = acc_num.split(".")[0].removeprefix("VCV").lstrip("0")
+            params = dict(db="clinvar", retmode="json", id=uid)
 
-            # API Call
-            api = requests.get(f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=clinvar&id={acc_num}&retmode=json")
-            
-            if api.status_code != 200:
-                return None, "Error"
-            
-            results = api.json()
+        # API Call
+        url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?"
+        success, results = State.call_api(url=url, params=params)
 
-            # Variant not found
-            if acc_num not in results["result"]["uids"]:
-                return None, "Variant not found"
+        if not success:
+            return None, results
 
-            for dicts in results["result"][acc_num]["variation_set"][0]["variation_loc"]:
-                if dicts["assembly_name"] == "GRCh38":
-                    loc = dicts
-                    break
-            delta = str(results["result"][acc_num]["variation_set"][0]["canonical_spdi"]).split(":")
+        # Information
+        try:
+
+            if db == "dbSNP":
+                info = results["result"][uid]
+                vnt_type_key = "snp_class"
+                vnt_type_value = "snv"
+                spdi_key = "spdi"
+
+                # coordinates
+                chrom, pos = str(info["chrpos"]).split(":")
+
+            elif db == "ClinVar":
+                info = results["result"][uid]["variation_set"][0]
+                vnt_type_key = "variant_type"
+                vnt_type_value = "single nucleotide variant"
+                spdi_key = "canonical_spdi"
+
+                # GRCh38/hg38 coordinates
+                for vdict in info["variation_loc"]:
+                    if vdict["assembly_name"] == "GRCh38":
+                        chrom = vdict["chr"]
+                        pos = vdict["start"]
+                        break
+
+            # non-SNP
+            if info[vnt_type_key] != vnt_type_value:
+                return None, "Variant is not a single-base substitution"
+
+            # alleles
+            spdi = str(info[spdi_key]).split(",")
+
             vnt = {
-                "chrom" : f"chr{loc["chr"].replace("MT", "M")}",
-                "pos" : int(loc["start"]) - 1,
+                "chrom" : f"chr{chrom.replace("MT", "M")}",
+                "pos" : int(pos) - 1,
                 "strand" : "+",
-                "ref" : delta[-2],
-                "alt" : delta[-1]
+                "ref" : ",".join(set(a.split(":")[2] for a in spdi)),
+                "alt" : ",".join(set(a.split(":")[3] for a in spdi)),
             }
 
+        # variant not found
+        except:
+            return None, "Variant not found"
+
+        # Non-canonical chromosome
+        if not Seq.format_chrom(vnt["chrom"]):
+            return None, "Variant not on a canonical chromosome"
+            
         # Not a single-base substitution
         alt = [a.strip().upper() for a in str(vnt["alt"]).split(",") if len(a.strip()) == 1]
 
         if (len(vnt["ref"]) != 1) or (len(alt) == 0):
             return None, "Variant is not a single-base substitution"
-        
+
+        # Return        
         chrom = vnt["chrom"]
         pos = vnt["pos"]
         strand = vnt["strand"]

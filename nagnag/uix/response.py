@@ -57,7 +57,7 @@ def _():
     # === Results === #
 
     @staticmethod
-    def reactive_vnt_ids(id:str) -> str:
+    def reactive_render_vnt_ids(id:str) -> str:
 
         def fn() -> str:
             if id == "nagnag_effect": return "nagnag_effect"
