@@ -3,6 +3,9 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Git
+*.rej
+
 # Images
 *.png
 *.svg
